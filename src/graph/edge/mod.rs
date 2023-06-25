@@ -1,4 +1,9 @@
-pub(crate) struct Edge<T, E> {
+//! 存储图中边的信息的数据结构
+
+/// T 为边上容量的类型
+/// 
+/// E 为边上费用的类型
+pub struct Edge<T, E> {
     pub(crate) from : usize,
     pub(crate) to : usize,
     pub(crate) next_edge : usize,

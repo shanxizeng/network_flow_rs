@@ -1,11 +1,47 @@
-// trait for type T E to support T * E
+//! 这个module用于实现不同类型的值相乘，可以支持图中的费用和流量使用不同的类型
+//! （如费用使用f64类型，而流量使用u32类型）
+
+/// 通过这个trait中的mul函数实现T和E类型相乘
+/// 
+/// 如果需要使用自己定义的数据类型，则需要实现这个trait，如
+/// 
+/// ```rust
+/// struct Complex {
+///     x : f64,
+///     y : f64
+/// }
+/// 
+/// struct Mul_u32_Complex;
+/// 
+/// impl MulTE<u32, Complex> for Mul_u32_Complex {
+///     fn mul(a : &u32, b : &Complex) -> Complex {
+///         Complex {
+///             x : a as f64 * b.x,
+///             y : a as f64 * b.y
+///         }
+///     }
+/// }
+/// 
+/// let x = Graph<String, u32, Complex, Mul_u32_Complex>::new();
+/// ```
 pub trait MulTE<T, E> {
+    /// 两个数相乘后得到一个和第二个数类型相同的值。
+    /// 
+    /// 这要求原则上b的精度应该大于a的精度。
+    /// 
+    /// 注意两个参数均为引用，使得可以更方便地作用于非Copy的type。
+    /// 
+    /// 基础的数据类型（u8-u128, i8-i128, f32, f64）之间的转化默认已经实现，如可以声明graph为
+    /// 
+    /// ```rust
+    ///     Graph<String, u32, f64>
+    /// ```
     fn mul(a :&T, b :&E) -> E;
 }
 
 // a implementation for primitary type
 // defaultly, T is smaller than E
-pub(crate) struct MulTEDefaultType;
+pub struct MulTEDefaultType;
 
 impl MulTE<u8, u8> for MulTEDefaultType {
     fn mul(a :&u8, b :&u8) -> u8 {
