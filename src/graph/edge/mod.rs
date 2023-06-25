@@ -3,6 +3,7 @@
 /// T 为边上容量的类型
 /// 
 /// E 为边上费用的类型
+#[derive(Debug)]
 pub struct Edge<T, E> {
     pub(crate) from : usize,
     pub(crate) to : usize,

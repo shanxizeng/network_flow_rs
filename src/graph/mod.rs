@@ -16,13 +16,14 @@ use std::marker::PhantomData;
 /// E为边的费用的类型
 /// 
 /// M用于实现容量和费用的相乘
+#[derive(Debug)]
 pub struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> 
     where 
         L : Clone,
-        E : Default + Add<E> + Sub<E>,
-        T : Default + Add<T> {
+        E : Default + Add<Output = E> + Sub<Output = E>,
+        T : Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
     labels : Vec<L>,
-    edges : Vec<Edge<T, E>>,
+    pub edges : Vec<Edge<T, E>>,
     first : Vec<Edge<T, E>>,
     m : PhantomData<M>
 }
@@ -46,8 +47,8 @@ fn empty_edges<T : Default, E : Default>(len : usize) -> Vec<Edge<T, E>> {
 impl<L, T, E, M> Graph<L, T, E, M> 
     where 
         L : Clone,
-        E : Clone + Default + Add<E> + Sub<E>,
-        T : Clone + Default + Add<T>,
+        E : Clone + Default + Add<Output = E> + Sub<Output = E>,
+        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
         M : super::costtype::MulTE<T, E> {
     /// 初始化一个图， 将原有的边和点全部去除
     pub fn init_graph(&mut self) {
@@ -87,7 +88,7 @@ impl<L, T, E, M> Graph<L, T, E, M>
         let mut edge = Edge::create_edge(
             from, to, self.first[from].next_edge, 0, weight.clone(), E::default());
         let mut edge2 = Edge::create_edge(
-            from, to, self.first[to].next_edge, 0, T::default(), E::default());
+            to, from, self.first[to].next_edge, 0, T::default(), E::default());
         edge.opp_edge = self.edges.len() + 1;
         edge2.opp_edge = self.edges.len();
         edge2.reversed = true;
@@ -122,11 +123,20 @@ impl<L, T, E, M> Graph<L, T, E, M>
         }
     }
 
+    fn first_edge_mut(&mut self, index : usize) -> Option<&mut Edge<T, E>> {
+        if self.first[index].next_edge == usize::MAX {
+            None
+        }
+        else {
+            Some(&mut self.edges[self.first[index].next_edge])
+        }
+    }
+
     /// 获得和now从同一个点指出的下一条边
     /// 
     /// 配合first_edge可以这样使用：
     /// 
-    /// ```rust
+    /// ```ignore
     /// let mut temp = graph.first_edge(0);
     /// while let Some(edge) = temp {
     ///     // do something
@@ -141,6 +151,28 @@ impl<L, T, E, M> Graph<L, T, E, M>
             Some(&self.edges[now.next_edge])
         }
     }
+    
+    fn next_edge_mut(&mut self, now : &mut Edge<T, E>) -> Option<&mut Edge<T, E>> {
+        if now.next_edge == usize::MAX {
+            None
+        }
+        else {
+            Some(&mut self.edges[now.next_edge])
+        }
+    }
+
+    /// 使用first_edge和next_edge函数得到从index出发的所有边及其编号
+    pub fn get_all_edges(&self, index : usize) -> Vec<(&Edge<T, E>, usize)> {
+        let mut res = vec![];
+        let mut temp = self.first_edge(index);
+        let mut no = self.first[index].next_edge;
+        while let Some(edge) = temp {
+            res.push((edge, no));
+            no = edge.next_edge;
+            temp = self.next_edge(edge);
+        }
+        res
+    }
 
     /// 获得与index相邻的所有点
     pub fn get_neighbor(&self, index : usize) -> Vec<usize> {
@@ -151,5 +183,86 @@ impl<L, T, E, M> Graph<L, T, E, M>
             edge = self.next_edge(x);
         }
         res
+    }
+
+    /// 求从s到t的最大流
+    pub fn get_max_flow(&mut self, s : usize, t : usize) -> T {
+        self.dinic(s, t)
+    }
+
+    fn bfs(&self, levels : &mut Vec<u32>, s : usize) {
+        levels[s] = 1;
+        let mut q1 = vec![];
+        let mut q2 = vec![];
+        q2.push(s);
+        while ! q1.is_empty() || ! q2.is_empty() {
+            if q1.is_empty() {
+                while !q2.is_empty() {
+                    q1.push(q2.pop().unwrap());
+                }
+            }
+            let now = q1.pop().unwrap();
+            let mut temp = self.first_edge(now);
+            while let Some(edge) = temp {
+                let x = edge.to;
+                if edge.weight != T::default() && levels[x] == 0 {
+                    levels[x] = levels[now] + 1;
+                    q2.push(x);
+                }
+                temp = self.next_edge(edge);
+            }
+        }
+    }
+
+    fn dfs(&mut self, now : usize, t : usize, levels : &Vec<u32>, flow : T) -> T {
+        if now == t {
+            flow
+        }
+        else {
+            let edges = self.get_all_edges(now);
+            let mut v = vec![];
+            for (edge, index) in edges {
+                v.push((edge.weight.clone(), edge.to, index));
+            }
+            let mut res = T::default();
+            for (w, x, index) in v {
+                if w != T::default() && levels[x] == levels[now] + 1 {
+                    if flow == T::default() {
+                        res = self.dfs(x, t, levels, w);
+                    }
+                    else if flow < w {
+                        res = self.dfs(x, t, levels, flow.clone());
+                    }
+                    else {
+                        res = self.dfs(x, t, levels, w);
+                    }
+                    if res != T::default() {
+                        self.edges[index].weight = self.edges[index].weight.clone() - res.clone();
+                        let temp = self.edges[index].opp_edge;
+                        self.edges[temp].weight = self.edges[temp].weight.clone() + res.clone();
+                        return res;
+                    }
+                }
+            }
+            T::default()
+        }
+    }
+
+    fn dinic(&mut self, s : usize, t : usize) -> T {
+        let mut res = T::default();
+        loop {
+            let mut levels = vec![0; self.labels.len()];
+            self.bfs(&mut levels, s);
+            if levels[t] == 0 {
+                break res
+            }
+            loop {
+                let temp = self.dfs(s, t, &levels, T::default());
+                if temp == T::default() {
+                    break
+                }
+                res = res + temp;
+            }
+        }
     }
 }

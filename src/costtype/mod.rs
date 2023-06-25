@@ -5,7 +5,7 @@
 /// 
 /// 如果需要使用自己定义的数据类型，则需要实现这个trait，如
 /// 
-/// ```rust
+/// ```ignore
 /// struct Complex {
 ///     x : f64,
 ///     y : f64
@@ -22,7 +22,7 @@
 ///     }
 /// }
 /// 
-/// let x = Graph<String, u32, Complex, Mul_u32_Complex>::new();
+/// let x = Graph::<String, u32, Complex, Mul_u32_Complex>::new();
 /// ```
 pub trait MulTE<T, E> {
     /// 两个数相乘后得到一个和第二个数类型相同的值。
@@ -33,8 +33,8 @@ pub trait MulTE<T, E> {
     /// 
     /// 基础的数据类型（u8-u128, i8-i128, f32, f64）之间的转化默认已经实现，如可以声明graph为
     /// 
-    /// ```rust
-    ///     Graph<String, u32, f64>
+    /// ```ignore
+    ///     Graph::<String, u32, f64>
     /// ```
     fn mul(a :&T, b :&E) -> E;
 }
