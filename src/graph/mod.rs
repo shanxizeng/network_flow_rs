@@ -4,10 +4,10 @@ use edge::*;
 use core::ops::Add;
 use core::ops::Mul;
 use core::ops::Sub;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::marker::PhantomData;
 
-pub(crate) struct Graph<L, T, E, M> 
+pub(crate) struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> 
     where 
         L : Clone,
         E : Default + Add<E> + Mul<T> + Sub<E>,
@@ -38,7 +38,8 @@ impl<L, T, E, M> Graph<L, T, E, M>
     where 
         L : Clone,
         E : Default + Add<E> + Mul<T> + Sub<E>,
-        T : Default + Add<T> {
+        T : Default + Add<T>,
+        M : super::costtype::MulTE<T, E> {
     pub fn init_graph(&mut self) {
         self.edges = vec![];
         self.labels = vec![];
