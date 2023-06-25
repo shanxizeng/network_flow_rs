@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 pub(crate) struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> 
     where 
         L : Clone,
-        E : Default + Add<E> + Mul<T> + Sub<E>,
+        E : Default + Add<E> + Sub<E>,
         T : Default + Add<T> {
     labels : Vec<L>,
     edges : Vec<Edge<T, E>>,
@@ -37,7 +37,7 @@ fn empty_edges<T : Default, E : Default>(len : usize) -> Vec<Edge<T, E>> {
 impl<L, T, E, M> Graph<L, T, E, M> 
     where 
         L : Clone,
-        E : Default + Add<E> + Mul<T> + Sub<E>,
+        E : Default + Add<E> + Sub<E>,
         T : Default + Add<T>,
         M : super::costtype::MulTE<T, E> {
     pub fn init_graph(&mut self) {
