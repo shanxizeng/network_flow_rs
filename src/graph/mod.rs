@@ -4,8 +4,13 @@ pub mod edge;
 use edge::*;
 use core::ops::Add;
 use core::ops::Sub;
+use core::mem::size_of;
+use std::io::Read;
+use std::io::Write;
 // use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::fs::File;
+use std::io::Error;
 
 /// 存储图的数据结构
 /// 
@@ -17,11 +22,7 @@ use std::marker::PhantomData;
 /// 
 /// M用于实现容量和费用的相乘
 #[derive(Debug)]
-pub struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> 
-    where 
-        L : Clone,
-        E : Default + Add<Output = E> + Sub<Output = E>,
-        T : Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
+pub struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> {
     labels : Vec<L>,
     pub edges : Vec<Edge<T, E>>,
     first : Vec<Edge<T, E>>,
@@ -264,5 +265,135 @@ impl<L, T, E, M> Graph<L, T, E, M>
                 res = res + temp;
             }
         }
+    }
+}
+
+use crate::io::BitIO;
+
+impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M> 
+    where
+        L : BitIO + Clone,
+        E : BitIO + Clone + Default + Add<Output = E> + Sub<Output = E>,
+        T : BitIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
+
+    pub fn output_file(&self, file : String) -> Result<(), Error> {
+        let mut fs = File::create(file)?;
+        fs.write(&self.labels.len().to_be_bytes())?;
+        for i in &self.labels {
+            let temp = i.to_bit();
+            fs.write(&temp.len().to_be_bytes())?;
+            fs.write(&temp)?;
+        }
+        fs.write(&self.edges.len().to_be_bytes())?;
+        for edge in &self.edges {
+            fs.write(&edge.from.to_be_bytes())?;
+            fs.write(&edge.to.to_be_bytes())?;
+            fs.write(&edge.next_edge.to_be_bytes())?;
+            fs.write(&edge.opp_edge.to_be_bytes())?;
+            fs.write(&(edge.reversed as u8).to_be_bytes())?;
+            let temp = edge.weight.to_bit();
+            fs.write(&temp.len().to_be_bytes())?;
+            fs.write(&temp)?;
+            let temp = edge.cost.to_bit();
+            fs.write(&temp.len().to_be_bytes())?;
+            fs.write(&temp)?;
+        }
+        fs.write(&self.first.len().to_be_bytes())?;
+        for edge in &self.first {
+            fs.write(&edge.from.to_be_bytes())?;
+            fs.write(&edge.to.to_be_bytes())?;
+            fs.write(&edge.next_edge.to_be_bytes())?;
+            fs.write(&edge.opp_edge.to_be_bytes())?;
+            fs.write(&(edge.reversed as u8).to_be_bytes())?;
+            let temp = edge.weight.to_bit();
+            fs.write(&temp.len().to_be_bytes())?;
+            fs.write(&temp)?;
+            let temp = edge.cost.to_bit();
+            fs.write(&temp.len().to_be_bytes())?;
+            fs.write(&temp)?;
+        }
+        Ok(())
+    }
+
+    pub fn input_file(&mut self, file : String) -> Result<Self, Error> {
+        let mut res = Self::new();
+        let mut fs = File::open(file)?;
+        let mut buf = [0; size_of::<usize>()];
+        fs.read(&mut buf)?;
+        let len = usize::from_be_bytes(buf);
+        for _ in 0..len {
+            fs.read(&mut buf)?;
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![0; len];
+            fs.read(&mut buf2)?;
+            res.labels.push(L::from_bit(&buf2));
+        }
+        fs.read(&mut buf)?;
+        let len = usize::from_be_bytes(buf);
+        for _ in 0..len {
+            fs.read(&mut buf)?;
+            let from = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let to = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let next_edge = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let opp_edge = usize::from_be_bytes(buf);
+
+            let mut buf3 = [0];
+            fs.read(&mut buf3)?;
+            let reversed = u8::from_be_bytes(buf3) != 0;
+
+            fs.read(&mut buf)?;
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![0; len];
+            fs.read(&mut buf2)?;
+            let weight = T::from_bit(&buf2);
+
+            fs.read(&mut buf)?;
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![0; len];
+            fs.read(&mut buf2)?;
+            let cost = E::from_bit(&buf2);
+            
+            res.edges.push(Edge{from, to, next_edge, opp_edge, reversed, weight, cost});
+        }
+        fs.read(&mut buf)?;
+        let len = usize::from_be_bytes(buf);
+        for _ in 0..len {
+            fs.read(&mut buf)?;
+            let from = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let to = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let next_edge = usize::from_be_bytes(buf);
+
+            fs.read(&mut buf)?;
+            let opp_edge = usize::from_be_bytes(buf);
+
+            let mut buf3 = [0];
+            fs.read(&mut buf3)?;
+            let reversed = u8::from_be_bytes(buf3) != 0;
+
+            fs.read(&mut buf)?;
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![0; len];
+            fs.read(&mut buf2)?;
+            let weight = T::from_bit(&buf2);
+
+            fs.read(&mut buf)?;
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![0; len];
+            fs.read(&mut buf2)?;
+            let cost = E::from_bit(&buf2);
+            
+            res.first.push(Edge{from, to, next_edge, opp_edge, reversed, weight, cost});
+        }
+        Ok(res)
     }
 }
