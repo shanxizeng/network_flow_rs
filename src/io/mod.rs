@@ -153,3 +153,52 @@ impl BitIO for String {
         String::from_utf8(res).expect("from_bit<String>:invalid utf8")
     }
 }
+
+/// 将数据从原来的形式与字符串形式之间进行转换
+/// 
+/// 对基础的数字类型、String进行了实现
+/// 
+/// 对于其他自定义类型，需要手动实现该trait
+pub trait StrIO {
+    fn to_str(&self) -> String;
+    fn from_str(s : &str) -> Self;
+}
+
+macro_rules! StrIOPrim {
+    ($ty : ty) => {
+        impl StrIO for $ty {
+            fn to_str(&self) -> String {
+                self.to_string()
+            }
+            fn from_str(s : &str) -> Self {
+                s.parse::<$ty>().unwrap()
+            }
+        }
+    };
+}
+
+StrIOPrim!(u8);
+StrIOPrim!(u16);
+StrIOPrim!(u32);
+StrIOPrim!(u64);
+StrIOPrim!(u128);
+StrIOPrim!(usize);
+
+StrIOPrim!(i8);
+StrIOPrim!(i16);
+StrIOPrim!(i32);
+StrIOPrim!(i64);
+StrIOPrim!(i128);
+StrIOPrim!(isize);
+
+StrIOPrim!(f32);
+StrIOPrim!(f64);
+
+impl StrIO for String {
+    fn to_str(&self) -> String {
+        self.clone()
+    }
+    fn from_str(s : &str) -> Self {
+        String::from(s)
+    }
+}

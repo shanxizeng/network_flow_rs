@@ -6,6 +6,8 @@ use core::ops::Add;
 use core::ops::Sub;
 use core::mem::size_of;
 use std::collections::VecDeque;
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::io::Read;
 use std::io::Write;
 // use std::collections::HashMap;
@@ -23,11 +25,12 @@ use std::io::Error;
 /// 
 /// M用于实现容量和费用的相乘
 #[derive(Debug)]
-pub struct Graph<L, T, E, M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> {
+pub struct Graph<L : Hash, T, E = (), M : super::costtype::MulTE<T, E> = super::costtype::MulTEDefaultType> {
     labels : Vec<L>,
     pub edges : Vec<Edge<T, E>>,
     first : Vec<Edge<T, E>>,
-    m : PhantomData<M>
+    m : PhantomData<M>,
+    hs : HashMap<L, usize>
 }
 
 fn copy_nodes<L : Clone>(nodes : &Vec<L>) -> Vec<L> {
@@ -46,18 +49,42 @@ fn empty_edges<T : Default, E : Default>(len : usize) -> Vec<Edge<T, E>> {
     res
 }
 
+fn make_hash<L : Clone + Hash + Eq>(nodes : &Vec<L>) -> HashMap<L, usize> {
+    let mut res = HashMap::new();
+    for i in 0..nodes.len() {
+        res.insert(nodes[i].clone(), i);
+    }
+    res
+}
+
 impl<L, T, E, M> Graph<L, T, E, M> 
     where 
-        L : Clone,
+        L : Clone + Hash + Eq,
         E : Default,
         T : Default,
         M : super::costtype::MulTE<T, E> {
+
+    /// 获得某一个label对应的编号
+    pub fn get_index(&self, label : &L) -> Option<usize> {
+        self.hs.get(label).map(|x| *x)
+    }
+
+    /// 获得某一个编号对应的label
+    pub fn get_label(&self, index : usize) -> Option<&L> {
+        if index >= self.labels.len() {
+            None
+        }
+        else {
+            Some(&self.labels[index])
+        }
+    }
 
     /// 初始化一个图， 将原有的边和点全部去除
     pub fn init_graph(&mut self) {
         self.edges = vec![];
         self.labels = vec![];
         self.first = vec![];
+        self.hs.clear();
     }
 
     /// 创建一个初始为空的图
@@ -66,7 +93,8 @@ impl<L, T, E, M> Graph<L, T, E, M>
             labels : vec![],
             edges : vec![],
             first : vec![],
-            m : PhantomData
+            m : PhantomData,
+            hs : HashMap::<L, usize>::new()
         }
     }
 
@@ -76,14 +104,16 @@ impl<L, T, E, M> Graph<L, T, E, M>
             labels : copy_nodes(nodes),
             edges : vec![],
             first : empty_edges(nodes.len()),
-            m : PhantomData
+            m : PhantomData,
+            hs : make_hash(nodes)
         }
     }
 
     /// 在最后添加一个新的点
     pub fn add_node(&mut self, label : &L) {
         self.labels.push(label.clone());
-        self.first.push(Edge::empty_edge(self.labels.len() - 1));        
+        self.first.push(Edge::empty_edge(self.labels.len() - 1));
+        self.hs.insert(label.clone(), self.labels.len() - 1);
     }
 
     /// 获得从index指出的第一条边
@@ -162,7 +192,7 @@ impl<L, T, E, M> Graph<L, T, E, M>
 
 impl<L, T, E, M> Graph<L, T, E, M> 
     where 
-        L : Clone,
+        L : Clone + Hash + Eq,
         E : Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
         T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
         M : super::costtype::MulTE<T, E> {
@@ -377,7 +407,7 @@ use crate::io::BitIO;
 
 impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M> 
     where
-        L : BitIO + Clone,
+        L : BitIO + Clone + Hash + Eq,
         E : BitIO + Clone + Default,
         T : BitIO + Clone + Default {
     /// 将当前的图的状态输出到文件中
@@ -503,6 +533,114 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
             let cost = E::from_bit(&buf2);
             
             res.first.push(Edge{from, to, next_edge, opp_edge, reversed, weight, cost});
+        }
+        Ok(res)
+    }
+}
+
+use crate::io::StrIO;
+use graphviz_rust_bla::{exec, parse};
+use graphviz_rust_bla::cmd::{CommandArg, Format};
+use graphviz_rust_bla::printer::{PrinterContext, DotPrinter};
+use graphviz_rust_bla::attributes::*;
+
+impl <L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M> 
+where
+    L : StrIO + Clone + Hash + Eq,
+    E : StrIO + Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
+    T : StrIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd, {
+    pub fn output_to_dot(&self, file : &str) -> Result<(), Error> {
+        use dot_structures::*;
+        use dot_generator::*;
+        let mut fs = File::create(file)?;
+        let mut g = graph!(di id!(file));
+        let mut temp = 0;
+        for l in &self.labels {
+            g.add_stmt(stmt!(node!(temp.to_str();attr!("label",l.to_str()))));
+            temp = temp + 1;
+        }
+        for e in &self.edges {
+            if e.reversed { continue; }
+            let temp = self.edges[e.opp_edge].weight.clone();
+            let tot = temp.clone() + e.weight.clone();
+            let mut s = String::from("\"");
+            s.push_str(&temp.to_str());
+            s.push('/');
+            s.push_str(&tot.to_str());
+            s.push(',');
+            s.push_str(&e.cost.to_str());
+            s.push('"');
+            g.add_stmt(stmt!(edge!(node_id!(e.from) => node_id!(e.to);attr!("label",s))));
+        }
+        let mut ctx = PrinterContext::default();
+        fs.write_all(g.print(&mut ctx).as_bytes())?;
+        Ok(())
+    }
+
+    fn get_from_id(x : &dot_structures::Id) -> &String {
+        match x {
+            dot_structures::Id::Html(s) => s,
+            dot_structures::Id::Escaped(s) => s,
+            dot_structures::Id::Plain(s) => s,
+            dot_structures::Id::Anonymous(s) => s,
+        }
+    }
+
+    fn get_from_vertex(x : &dot_structures::Vertex) -> usize {
+        match x {
+            dot_structures::Vertex::N(x) => usize::from_str(Self::get_from_id(&x.0)),
+            _ => 0,
+        }
+    }
+
+    pub fn from_dot(file : &str) -> Result<Self, Error> {
+        let mut res = Self::new();
+        use dot_structures::Graph::DiGraph;
+        use dot_structures::Stmt::*;
+        let mut fs = File::open(file)?;
+        let mut buf = vec![];
+        fs.read_to_end(&mut buf)?;
+        let s = parse(&String::from_utf8(buf).unwrap()).unwrap();
+        match s {
+            DiGraph { id : _, strict : _, stmts } => {
+                for stmt in stmts {
+                    match stmt {
+                        Node(node) => {
+                            res.add_node(&L::from_str(Self::get_from_id(&node.attributes[0].1)));
+                        },
+                        Edge(edge) => {
+                            let mut from = 0;
+                            let mut to = 0;
+                            match edge.ty {
+                                dot_structures::EdgeTy::Pair(u, v) => {
+                                    from = Self::get_from_vertex(&u);
+                                    to = Self::get_from_vertex(&v);
+                                },
+                                _ => {}
+                            }
+                            if from == to {
+                                panic!("from_dot : invalid edge form");
+                            }
+                            let mut s = Self::get_from_id(&edge.attributes[0].1).clone();
+                            let p = s.find('/').unwrap();
+                            let mut ss = s.split_off(p);
+                            let w = T::from_str(&s);
+                            s = ss.split_off(1);
+                            let p = s.find(',').unwrap();
+                            ss = s.split_off(p);
+                            let ww = T::from_str(&s);
+                            s = ss.split_off(1);
+                            let c = E::from_str(&s);
+                            res.add_edge2(from, to, &ww, &c);
+                            let l = res.edges.len();
+                            res.edges[l - 1].weight = res.edges[l - 1].weight.clone() + w.clone();
+                            res.edges[l - 2].weight = res.edges[l - 2].weight.clone() - w.clone();
+                        },
+                        _ => ()
+                    }
+                }
+            },
+            _ => {panic!("from_dot : invalid graph form");}
         }
         Ok(res)
     }

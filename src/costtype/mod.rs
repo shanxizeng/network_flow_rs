@@ -5,7 +5,10 @@
 /// 
 /// 如果需要使用自己定义的数据类型，则需要实现这个trait，如
 /// 
-/// ```ignore
+/// ```
+/// use network_flow::graph::Graph;
+/// use network_flow::costtype::MulTE;
+/// #[derive(Default, Clone)]
 /// struct Complex {
 ///     x : f64,
 ///     y : f64
@@ -16,8 +19,8 @@
 /// impl MulTE<u32, Complex> for Mul_u32_Complex {
 ///     fn mul(a : &u32, b : &Complex) -> Complex {
 ///         Complex {
-///             x : a as f64 * b.x,
-///             y : a as f64 * b.y
+///             x : *a as f64 * b.x,
+///             y : *a as f64 * b.y
 ///         }
 ///     }
 /// }

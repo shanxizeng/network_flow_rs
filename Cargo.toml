@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+graphviz-rust-bla = "0.*"
+dot-structures = "0.1.0"
+dot-generator = "0.2.0"

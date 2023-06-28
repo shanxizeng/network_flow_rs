@@ -17,8 +17,8 @@ fn main() -> Result<(),Error> {
     g.add_edge(3, 4, &1);
     g.add_edge(3, 5, &3);
     g.add_edge(4, 5, &9);
-    g.output_file("test.txt")?;
     assert_eq!(9, g.get_max_flow(0, 5));
+    g.output_to_dot("test.dot")?;
     // let mut gg = Graph::<String, u32, u32>::input_file(String::from("test.txt")).unwrap();
     // println!("{:?}", g.get_max_flow(0, 5));
     Ok(())
