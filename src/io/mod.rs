@@ -1,8 +1,47 @@
 //! 实现对图进行输入和输出的module
 //! 
 
+/// 将数据从原来的形式与字节形式之间进行转换
+/// 
+/// 对基础的数字类型、Vec、String进行了实现
+/// 
+/// 对于其他自定义类型，需要手动实现该trait，如：
+/// 
+/// ```
+/// use network_flow::io::BitIO;
+/// use std::mem::size_of;
+/// struct MyStruct {
+///     a : String,
+///     b : u32,
+///     c : Vec<String>
+/// }
+/// impl BitIO for MyStruct {
+///     fn to_bit(&self) -> Vec<u8> {
+///         let mut temp = self.a.to_bit();
+///         let mut res = temp.len().to_bit();
+///         res.append(&mut temp);
+///         res.append(&mut self.b.to_bit());
+///         res.append(&mut self.c.to_bit());
+///         res
+///     }
+///     fn from_bit(a : &[u8]) -> Self {
+///         let mut temp = size_of::<usize>();
+///         let len = usize::from_bit(a);
+///         let temp1 = String::from_bit(&a[temp..]);
+///         temp = temp + len;
+///         let temp2 = u32::from_bit(&a[temp..]);
+///         temp = temp + size_of::<u32>();
+///         let temp3 = Vec::<String>::from_bit(&a[temp..]);
+///         MyStruct { a: temp1, b: temp2, c: temp3 }
+///     }
+/// }
+/// ```
+/// 
+/// 使用实现了该trait的类型构建的图，可以进行自动的文件输入输出，保存当前图中的状态或者读取原来的图的状态。
 pub trait BitIO {
+    /// 转为字节形式
     fn to_bit(&self) -> Vec<u8>;
+    /// 从字节形式生成
     fn from_bit(a : &[u8]) -> Self;
 }
 

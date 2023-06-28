@@ -275,7 +275,9 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
         L : BitIO + Clone,
         E : BitIO + Clone + Default + Add<Output = E> + Sub<Output = E>,
         T : BitIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
-
+    /// 将当前的图的状态输出到文件中
+    /// 
+    /// L, T, E均需实现BitIO trait
     pub fn output_file(&self, file : &str) -> Result<(), Error> {
         let mut fs = File::create(file)?;
         fs.write(&self.labels.len().to_be_bytes())?;
@@ -314,7 +316,9 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
         }
         Ok(())
     }
-
+    /// 从文件中生成一个图
+    /// 
+    /// L, T, E均需实现BitIO trait
     pub fn input_file(file : &str) -> Result<Self, Error> {
         let mut res = Self::new();
         let mut fs = File::open(file)?;
