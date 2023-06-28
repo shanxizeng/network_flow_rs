@@ -5,6 +5,7 @@ use edge::*;
 use core::ops::Add;
 use core::ops::Sub;
 use core::mem::size_of;
+use std::collections::VecDeque;
 use std::io::Read;
 use std::io::Write;
 // use std::collections::HashMap;
@@ -48,9 +49,10 @@ fn empty_edges<T : Default, E : Default>(len : usize) -> Vec<Edge<T, E>> {
 impl<L, T, E, M> Graph<L, T, E, M> 
     where 
         L : Clone,
-        E : Clone + Default + Add<Output = E> + Sub<Output = E>,
-        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
+        E : Default,
+        T : Default,
         M : super::costtype::MulTE<T, E> {
+
     /// 初始化一个图， 将原有的边和点全部去除
     pub fn init_graph(&mut self) {
         self.edges = vec![];
@@ -82,36 +84,6 @@ impl<L, T, E, M> Graph<L, T, E, M>
     pub fn add_node(&mut self, label : &L) {
         self.labels.push(label.clone());
         self.first.push(Edge::empty_edge(self.labels.len() - 1));        
-    }
-
-    /// 添加一条从from到to的边，容量为weight，费用为默认值
-    pub fn add_edge(&mut self, from : usize, to : usize, weight : &T) {
-        let mut edge = Edge::create_edge(
-            from, to, self.first[from].next_edge, 0, weight.clone(), E::default());
-        let mut edge2 = Edge::create_edge(
-            to, from, self.first[to].next_edge, 0, T::default(), E::default());
-        edge.opp_edge = self.edges.len() + 1;
-        edge2.opp_edge = self.edges.len();
-        edge2.reversed = true;
-        self.first[from].next_edge = self.edges.len();
-        self.first[to].next_edge = self.edges.len() + 1;
-        self.edges.push(edge);
-        self.edges.push(edge2);
-    }
-
-    /// 添加一条从from到to的边，容量为weight，费用为cost
-    pub fn add_edge2(&mut self, from : usize, to : usize, weight : &T, cost : &E) {
-        let mut edge = Edge::create_edge(
-            from, to, self.first[from].next_edge, 0, weight.clone(), cost.clone());
-        let mut edge2 = Edge::create_edge(
-            from, to, self.first[to].next_edge, 0, T::default(), cost.clone());
-        edge.opp_edge = self.edges.len() + 1;
-        edge2.opp_edge = self.edges.len();
-        edge2.reversed = true;
-        self.first[from].next_edge = self.edges.len();
-        self.first[to].next_edge = self.edges.len() + 1;
-        self.edges.push(edge);
-        self.edges.push(edge2);
     }
 
     /// 获得从index指出的第一条边
@@ -184,6 +156,46 @@ impl<L, T, E, M> Graph<L, T, E, M>
             edge = self.next_edge(x);
         }
         res
+    }
+
+}
+
+impl<L, T, E, M> Graph<L, T, E, M> 
+    where 
+        L : Clone,
+        E : Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
+        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
+        M : super::costtype::MulTE<T, E> {
+    
+
+    /// 添加一条从from到to的边，容量为weight，费用为默认值
+    pub fn add_edge(&mut self, from : usize, to : usize, weight : &T) {
+        let mut edge = Edge::create_edge(
+            from, to, self.first[from].next_edge, 0, weight.clone(), E::default());
+        let mut edge2 = Edge::create_edge(
+            to, from, self.first[to].next_edge, 0, T::default(), E::default());
+        edge.opp_edge = self.edges.len() + 1;
+        edge2.opp_edge = self.edges.len();
+        edge2.reversed = true;
+        self.first[from].next_edge = self.edges.len();
+        self.first[to].next_edge = self.edges.len() + 1;
+        self.edges.push(edge);
+        self.edges.push(edge2);
+    }
+
+    /// 添加一条从from到to的边，容量为weight，费用为cost
+    pub fn add_edge2(&mut self, from : usize, to : usize, weight : &T, cost : &E) {
+        let mut edge = Edge::create_edge(
+            from, to, self.first[from].next_edge, 0, weight.clone(), cost.clone());
+        let mut edge2 = Edge::create_edge(
+            from, to, self.first[to].next_edge, 0, T::default(), cost.clone());
+        edge.opp_edge = self.edges.len() + 1;
+        edge2.opp_edge = self.edges.len();
+        edge2.reversed = true;
+        self.first[from].next_edge = self.edges.len();
+        self.first[to].next_edge = self.edges.len() + 1;
+        self.edges.push(edge);
+        self.edges.push(edge2);
     }
 
     /// 求从s到t的最大流
@@ -266,6 +278,99 @@ impl<L, T, E, M> Graph<L, T, E, M>
             }
         }
     }
+
+    fn spfa(&self, s : usize, t : usize, dist : &mut [E]) -> bool {
+        let mut q = VecDeque::new();
+        q.push_back(t); dist[t] = E::default();
+        let mut vis = vec![false; self.labels.len()];
+        let mut inque = vec![false; self.labels.len()];
+        inque[t] = true;
+        vis[t] = true;
+        while !q.is_empty() {
+            let now = q.pop_front().unwrap();
+            let edges = self.get_all_edges(now);
+            let mut v = vec![];
+            for (edge, _) in edges {
+                v.push((self.edges[edge.opp_edge].weight.clone(), edge.cost.clone(), edge.to, edge.reversed));
+            }
+            for (w, c, to, r) in v {
+                if w == T::default() {
+                    continue;
+                }
+                let newcost = if r { dist[now].clone() + c } else { dist[now].clone() - c };
+                if !vis[to] || dist[to] > newcost {
+                    vis[to] = true;
+                    dist[to] = newcost;
+                    if !inque[to] {
+                        inque[to] = true;
+                        if q.is_empty() || dist[*q.front().unwrap()] < dist[to] {
+                            q.push_back(to);
+                        }
+                        else {
+                            q.push_front(to);
+                        }
+                    }
+                }
+            }
+            inque[now] = false;
+        }
+        vis[s]
+    }
+
+    fn mcmf_dfs(&mut self, now : usize, flow : T, cost : &mut E, dist : &[E], vis : &mut [bool], t : usize) -> T {
+        vis[now] = true;
+        if now == t {
+            flow
+        }
+        else {
+            let edges = self.get_all_edges(now);
+            let mut v = vec![];
+            for (edge, index) in edges {
+                v.push((edge.opp_edge, edge.weight.clone(), edge.cost.clone(), edge.to, edge.reversed, index));
+            }
+            for (opp, w, c, to, r, i) in v {
+                let temp = if r {dist[to].clone() - c.clone()} else {dist[to].clone() + c.clone()};
+                if dist[now] != temp || vis[to] || w == T::default() {
+                    continue;
+                }
+                let f : T;
+                if flow == T::default() {
+                    f = self.mcmf_dfs(to, w, cost, dist, vis, t);
+                }
+                else if flow < w {
+                    f = self.mcmf_dfs(to, flow.clone(), cost, dist, vis, t);
+                }
+                else {
+                    f = self.mcmf_dfs(to, w, cost, dist, vis, t);
+                }
+                if f != T::default() {
+                    *cost = cost.clone() + M::mul(&f, &c);
+                    self.edges[i].weight = self.edges[i].weight.clone() - f.clone();
+                    self.edges[opp].weight = self.edges[opp].weight.clone() + f.clone();
+                    return f;
+                }
+            }
+            T::default()
+        }
+    }
+
+    /// 求从s到t的最小费用最大流
+    pub fn mcmf(&mut self, s : usize, t : usize) -> (T, E) {
+        let mut cost = E::default();
+        let mut flow = T::default();
+        let mut dist = vec![E::default(); self.labels.len()];
+        while self.spfa(s, t,&mut dist) {
+            let mut vis = vec![false; self.labels.len()];
+            vis[t] = true;
+            while vis[t] {
+                for i in &mut vis {
+                    *i = false;
+                }
+                flow = flow + self.mcmf_dfs(s, T::default(), &mut cost, &dist, &mut vis, t);
+            }
+        }
+        (flow, cost)
+    }
 }
 
 use crate::io::BitIO;
@@ -273,8 +378,8 @@ use crate::io::BitIO;
 impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M> 
     where
         L : BitIO + Clone,
-        E : BitIO + Clone + Default + Add<Output = E> + Sub<Output = E>,
-        T : BitIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
+        E : BitIO + Clone + Default,
+        T : BitIO + Clone + Default {
     /// 将当前的图的状态输出到文件中
     /// 
     /// L, T, E均需实现BitIO trait
