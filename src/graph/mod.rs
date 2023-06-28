@@ -245,7 +245,7 @@ impl<L, T, E, M> Graph<L, T, E, M>
                     }
                 }
             }
-            T::default()
+            res
         }
     }
 
@@ -276,7 +276,7 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
         E : BitIO + Clone + Default + Add<Output = E> + Sub<Output = E>,
         T : BitIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd {
 
-    pub fn output_file(&self, file : String) -> Result<(), Error> {
+    pub fn output_file(&self, file : &str) -> Result<(), Error> {
         let mut fs = File::create(file)?;
         fs.write(&self.labels.len().to_be_bytes())?;
         for i in &self.labels {
@@ -315,81 +315,82 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
         Ok(())
     }
 
-    pub fn input_file(&mut self, file : String) -> Result<Self, Error> {
+    pub fn input_file(file : &str) -> Result<Self, Error> {
         let mut res = Self::new();
         let mut fs = File::open(file)?;
         let mut buf = [0; size_of::<usize>()];
-        fs.read(&mut buf)?;
+        assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
         let len = usize::from_be_bytes(buf);
         for _ in 0..len {
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let len = usize::from_be_bytes(buf);
             let mut buf2 = vec![0; len];
-            fs.read(&mut buf2)?;
-            res.labels.push(L::from_bit(&buf2));
+            assert_eq!(fs.read(&mut buf2)?, len);
+            let l = L::from_bit(&buf2);
+            res.labels.push(l);
         }
-        fs.read(&mut buf)?;
+        assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
         let len = usize::from_be_bytes(buf);
         for _ in 0..len {
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let from = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let to = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let next_edge = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let opp_edge = usize::from_be_bytes(buf);
 
             let mut buf3 = [0];
-            fs.read(&mut buf3)?;
+            assert_eq!(fs.read(&mut buf3)?, 1);
             let reversed = u8::from_be_bytes(buf3) != 0;
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let len = usize::from_be_bytes(buf);
             let mut buf2 = vec![0; len];
-            fs.read(&mut buf2)?;
+            assert_eq!(fs.read(&mut buf2)?, len);
             let weight = T::from_bit(&buf2);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let len = usize::from_be_bytes(buf);
             let mut buf2 = vec![0; len];
-            fs.read(&mut buf2)?;
+            assert_eq!(fs.read(&mut buf2)?, len);
             let cost = E::from_bit(&buf2);
             
             res.edges.push(Edge{from, to, next_edge, opp_edge, reversed, weight, cost});
         }
-        fs.read(&mut buf)?;
+        assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
         let len = usize::from_be_bytes(buf);
         for _ in 0..len {
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let from = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let to = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let next_edge = usize::from_be_bytes(buf);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let opp_edge = usize::from_be_bytes(buf);
 
             let mut buf3 = [0];
-            fs.read(&mut buf3)?;
+            assert_eq!(fs.read(&mut buf3)?, 1);
             let reversed = u8::from_be_bytes(buf3) != 0;
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let len = usize::from_be_bytes(buf);
             let mut buf2 = vec![0; len];
-            fs.read(&mut buf2)?;
+            assert_eq!(fs.read(&mut buf2)?, len);
             let weight = T::from_bit(&buf2);
 
-            fs.read(&mut buf)?;
+            assert_eq!(fs.read(&mut buf)?, size_of::<usize>());
             let len = usize::from_be_bytes(buf);
             let mut buf2 = vec![0; len];
-            fs.read(&mut buf2)?;
+            assert_eq!(fs.read(&mut buf2)?, len);
             let cost = E::from_bit(&buf2);
             
             res.first.push(Edge{from, to, next_edge, opp_edge, reversed, weight, cost});

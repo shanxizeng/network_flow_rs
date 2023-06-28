@@ -53,6 +53,8 @@ macro_rules! MulTEPrim {
     };
 }
 
+MulTEPrim!(u8, usize);
+MulTEPrim!(u8, isize);
 MulTEPrim!(u8, u8);
 MulTEPrim!(u8, u16);
 MulTEPrim!(u8, u32);
@@ -66,6 +68,8 @@ MulTEPrim!(u8, i128);
 MulTEPrim!(u8, f32);
 MulTEPrim!(u8, f64);
 
+MulTEPrim!(i8, usize);
+MulTEPrim!(i8, isize);
 MulTEPrim!(i8, u8);
 MulTEPrim!(i8, u16);
 MulTEPrim!(i8, u32);
@@ -79,6 +83,8 @@ MulTEPrim!(i8, i128);
 MulTEPrim!(i8, f32);
 MulTEPrim!(i8, f64);
 
+MulTEPrim!(u16, usize);
+MulTEPrim!(u16, isize);
 MulTEPrim!(u16, u16);
 MulTEPrim!(u16, u32);
 MulTEPrim!(u16, u64);
@@ -90,6 +96,8 @@ MulTEPrim!(u16, i128);
 MulTEPrim!(u16, f32);
 MulTEPrim!(u16, f64);
 
+MulTEPrim!(i16, usize);
+MulTEPrim!(i16, isize);
 MulTEPrim!(i16, u16);
 MulTEPrim!(i16, u32);
 MulTEPrim!(i16, u64);
@@ -101,6 +109,8 @@ MulTEPrim!(i16, i128);
 MulTEPrim!(i16, f32);
 MulTEPrim!(i16, f64);
 
+MulTEPrim!(u32, usize);
+MulTEPrim!(u32, isize);
 MulTEPrim!(u32, u32);
 MulTEPrim!(u32, u64);
 MulTEPrim!(u32, u128);
@@ -110,6 +120,8 @@ MulTEPrim!(u32, i128);
 MulTEPrim!(u32, f32);
 MulTEPrim!(u32, f64);
 
+MulTEPrim!(i32, usize);
+MulTEPrim!(i32, isize);
 MulTEPrim!(i32, u32);
 MulTEPrim!(i32, u64);
 MulTEPrim!(i32, u128);
@@ -119,6 +131,8 @@ MulTEPrim!(i32, i128);
 MulTEPrim!(i32, f32);
 MulTEPrim!(i32, f64);
 
+MulTEPrim!(u64, usize);
+MulTEPrim!(u64, isize);
 MulTEPrim!(u64, u64);
 MulTEPrim!(u64, u128);
 MulTEPrim!(u64, i64);
@@ -126,12 +140,32 @@ MulTEPrim!(u64, i128);
 MulTEPrim!(u64, f32);
 MulTEPrim!(u64, f64);
 
+MulTEPrim!(i64, usize);
+MulTEPrim!(i64, isize);
 MulTEPrim!(i64, u64);
 MulTEPrim!(i64, u128);
 MulTEPrim!(i64, i64);
 MulTEPrim!(i64, i128);
 MulTEPrim!(i64, f32);
 MulTEPrim!(i64, f64);
+
+MulTEPrim!(usize, usize);
+MulTEPrim!(usize, isize);
+MulTEPrim!(usize, u64);
+MulTEPrim!(usize, u128);
+MulTEPrim!(usize, i64);
+MulTEPrim!(usize, i128);
+MulTEPrim!(usize, f32);
+MulTEPrim!(usize, f64);
+
+MulTEPrim!(isize, usize);
+MulTEPrim!(isize, isize);
+MulTEPrim!(isize, u64);
+MulTEPrim!(isize, u128);
+MulTEPrim!(isize, i64);
+MulTEPrim!(isize, i128);
+MulTEPrim!(isize, f32);
+MulTEPrim!(isize, f64);
 
 MulTEPrim!(u128, u128);
 MulTEPrim!(u128, i128);

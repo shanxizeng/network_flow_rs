@@ -44,3 +44,73 @@ BitIOPrim!(i128);
 BitIOPrim!(isize);
 BitIOPrim!(f32);
 BitIOPrim!(f64);
+impl<T : BitIO> BitIO for Vec<T> {
+    fn to_bit(&self) -> Vec<u8> {
+        let mut res = vec![];
+        let l = self.len().to_be_bytes();
+        for i in l {
+            res.push(i);
+        }
+        for i in self {
+            let mut temp = i.to_bit();
+            let l = temp.len().to_be_bytes();
+            for i in l {
+                res.push(i);
+            }
+            res.append(&mut temp);
+        }
+        res
+    }
+    fn from_bit(a : &[u8]) -> Self {
+        let mut res = vec![];
+        let mut buf = [0; size_of::<usize>()];
+        let mut temp = 0;
+        for i in 0..size_of::<usize>() {
+            buf[i] = a[temp];
+            temp = temp + 1;
+        }
+        let len = usize::from_be_bytes(buf);
+        for _ in 0..len {
+            for i in 0..size_of::<usize>() {
+                buf[i] = a[temp];
+                temp = temp + 1;
+            }
+            let len = usize::from_be_bytes(buf);
+            let mut buf2 = vec![];
+            for _ in 0..len {
+                buf2.push(a[temp]);
+                temp = temp + 1;
+            }
+            res.push(T::from_bit(&buf2));
+        } 
+        res
+    }
+}
+impl BitIO for String {
+    fn to_bit(&self) -> Vec<u8> {
+        let mut res = vec![];
+        let l = self.as_bytes().len().to_be_bytes();
+        for i in l {
+            res.push(i);
+        }
+        for i in self.as_bytes() {
+            res.push(*i);
+        }
+        res
+    }
+    fn from_bit(a : &[u8]) -> Self {
+        let mut res = vec![];
+        let mut buf = [0; size_of::<usize>()];
+        let mut temp = 0;
+        for i in 0..size_of::<usize>() {
+            buf[i] = a[temp];
+            temp = temp + 1;
+        }
+        let len = usize::from_be_bytes(buf);
+        for _ in 0..len {
+            res.push(a[temp]);
+            temp = temp + 1;
+        } 
+        String::from_utf8(res).expect("from_bit<String>:invalid utf8")
+    }
+}
