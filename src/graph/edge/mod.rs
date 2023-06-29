@@ -36,4 +36,17 @@ impl<T, E> Edge<T, E>
             from, to, next_edge, opp_edge, weight, cost, reversed : false
         }
     }
+
+    pub fn is_reversed(&self) -> bool {
+        self.reversed
+    }
+
+    pub fn get_to(&self) -> usize {
+        self.to
+    }
+}
+impl <T : Default + PartialEq, E> Edge<T, E> {
+    pub fn is_full(&self) -> bool {
+        self.weight == T::default()
+    }
 }

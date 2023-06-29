@@ -36,9 +36,7 @@ pub trait MulTE<T, E> {
     /// 
     /// 基础的数据类型（u8-u128, i8-i128, f32, f64）之间的转化默认已经实现，如可以声明graph为
     /// 
-    /// ```ignore
-    ///     Graph::<String, u32, f64>
-    /// ```
+    /// `Graph::<String, u32, f64>`
     fn mul(a :&T, b :&E) -> E;
 }
 
@@ -54,6 +52,10 @@ macro_rules! MulTEPrim {
             }
         }
     };
+}
+
+impl<T> MulTE<T, ()> for MulTEDefaultType {
+    fn mul(_ : &T, _ : &()) -> () {} 
 }
 
 MulTEPrim!(u8, usize);

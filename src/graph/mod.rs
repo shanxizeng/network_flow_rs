@@ -33,7 +33,7 @@ pub struct Graph<L : Hash, T, E = (), M : super::costtype::MulTE<T, E> = super::
     hs : HashMap<L, usize>
 }
 
-fn copy_nodes<L : Clone>(nodes : &Vec<L>) -> Vec<L> {
+fn copy_nodes<L : Clone>(nodes : &[L]) -> Vec<L> {
     let mut res = vec![];
     for i in nodes {
         res.push(i.clone());
@@ -49,7 +49,7 @@ fn empty_edges<T : Default, E : Default>(len : usize) -> Vec<Edge<T, E>> {
     res
 }
 
-fn make_hash<L : Clone + Hash + Eq>(nodes : &Vec<L>) -> HashMap<L, usize> {
+fn make_hash<L : Clone + Hash + Eq>(nodes : &[L]) -> HashMap<L, usize> {
     let mut res = HashMap::new();
     for i in 0..nodes.len() {
         res.insert(nodes[i].clone(), i);
@@ -99,7 +99,7 @@ impl<L, T, E, M> Graph<L, T, E, M>
     }
 
     /// 使用一些点的标签来创建一个图，按照在vector中的顺序赋予其编号
-    pub fn create_graph(nodes : &Vec<L>) -> Self {
+    pub fn create_graph(nodes : &[L]) -> Self {
         Self {
             labels : copy_nodes(nodes),
             edges : vec![],
@@ -139,11 +139,14 @@ impl<L, T, E, M> Graph<L, T, E, M>
     /// 
     /// 配合first_edge可以这样使用：
     /// 
-    /// ```ignore
-    /// let mut temp = graph.first_edge(0);
+    /// ```no_run
+    /// use network_flow::graph::Graph;
+    /// let mut g = Graph::<usize, i32>::new();
+    /// // build graph
+    /// let mut temp = g.first_edge(0);
     /// while let Some(edge) = temp {
     ///     // do something
-    ///     temp = graph.next_edge(edge);
+    ///     temp = g.next_edge(edge);
     /// }
     /// ```
     pub fn next_edge(&self, now : &Edge<T, E>) -> Option<&Edge<T, E>> {
@@ -191,12 +194,11 @@ impl<L, T, E, M> Graph<L, T, E, M>
 }
 
 impl<L, T, E, M> Graph<L, T, E, M> 
-    where 
-        L : Clone + Hash + Eq,
-        E : Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
-        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
+    where
+        L : Hash,
+        E : Clone + Default,
+        T : Clone + Default,
         M : super::costtype::MulTE<T, E> {
-    
 
     /// 添加一条从from到to的边，容量为weight，费用为默认值
     pub fn add_edge(&mut self, from : usize, to : usize, weight : &T) {
@@ -218,7 +220,7 @@ impl<L, T, E, M> Graph<L, T, E, M>
         let mut edge = Edge::create_edge(
             from, to, self.first[from].next_edge, 0, weight.clone(), cost.clone());
         let mut edge2 = Edge::create_edge(
-            from, to, self.first[to].next_edge, 0, T::default(), cost.clone());
+            to, from, self.first[to].next_edge, 0, T::default(), cost.clone());
         edge.opp_edge = self.edges.len() + 1;
         edge2.opp_edge = self.edges.len();
         edge2.reversed = true;
@@ -228,6 +230,15 @@ impl<L, T, E, M> Graph<L, T, E, M>
         self.edges.push(edge2);
     }
 
+}
+
+
+impl<L, T, E, M> Graph<L, T, E, M> 
+    where 
+        L : Clone + Hash + Eq,
+        E : Clone + Default,
+        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
+        M : super::costtype::MulTE<T, E> {
     /// 求从s到t的最大流
     pub fn get_max_flow(&mut self, s : usize, t : usize) -> T {
         self.dinic(s, t)
@@ -308,6 +319,39 @@ impl<L, T, E, M> Graph<L, T, E, M>
             }
         }
     }
+
+    /// 求从s为源的最小割，返回与s相连的所有点。
+    /// 
+    /// 需要先调用最大流函数或者费用流函数
+    /// 
+    /// 如：
+    /// 
+    /// ```no_run
+    /// use network_flow::graph::Graph;
+    /// let mut g = Graph::<usize, i32>::new();
+    /// // 建图
+    /// g.get_max_flow(0, 10);
+    /// let v = g.get_cut(0);
+    /// ```
+    pub fn get_cut(&self, s : usize) -> Vec<usize> {
+        let mut levels = vec![0; self.labels.len()];
+        self.bfs(&mut levels, s);
+        let mut res = vec![];
+        for i in 0..self.labels.len() {
+            if levels[i] != 0 {
+                res.push(i);
+            }
+        }
+        res
+    }
+}
+
+impl<L, T, E, M> Graph<L, T, E, M> 
+    where 
+        L : Clone + Hash + Eq,
+        E : Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
+        T : Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd,
+        M : super::costtype::MulTE<T, E> {
 
     fn spfa(&self, s : usize, t : usize, dist : &mut [E]) -> bool {
         let mut q = VecDeque::new();
@@ -539,21 +583,20 @@ impl<L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M>
 }
 
 use crate::io::StrIO;
-use graphviz_rust_bla::{exec, parse};
-use graphviz_rust_bla::cmd::{CommandArg, Format};
+use graphviz_rust_bla::parse;
 use graphviz_rust_bla::printer::{PrinterContext, DotPrinter};
-use graphviz_rust_bla::attributes::*;
 
 impl <L, T, E, M : super::costtype::MulTE<T, E>> Graph<L, T, E, M> 
 where
     L : StrIO + Clone + Hash + Eq,
-    E : StrIO + Clone + Default + Add<Output = E> + Sub<Output = E> + PartialEq + PartialOrd,
-    T : StrIO + Clone + Default + Add<Output = T> + Sub<Output = T> + PartialEq + PartialOrd, {
+    E : StrIO + Clone + Default + Add<Output = E> + Sub<Output = E>,
+    T : StrIO + Clone + Default + Add<Output = T> + Sub<Output = T>, {
+    /// 将图输出到.dot文件中
     pub fn output_to_dot(&self, file : &str) -> Result<(), Error> {
         use dot_structures::*;
         use dot_generator::*;
         let mut fs = File::create(file)?;
-        let mut g = graph!(di id!(file));
+        let mut g = graph!(di id!("test"));
         let mut temp = 0;
         for l in &self.labels {
             g.add_stmt(stmt!(node!(temp.to_str();attr!("label",l.to_str()))));
@@ -593,6 +636,7 @@ where
         }
     }
 
+    /// 从.dot文件中读取图
     pub fn from_dot(file : &str) -> Result<Self, Error> {
         let mut res = Self::new();
         use dot_structures::Graph::DiGraph;
@@ -621,7 +665,7 @@ where
                             if from == to {
                                 panic!("from_dot : invalid edge form");
                             }
-                            let mut s = Self::get_from_id(&edge.attributes[0].1).clone();
+                            let mut s = Self::get_from_id(&edge.attributes[0].1).clone().split_off(1);
                             let p = s.find('/').unwrap();
                             let mut ss = s.split_off(p);
                             let w = T::from_str(&s);
@@ -630,6 +674,7 @@ where
                             ss = s.split_off(p);
                             let ww = T::from_str(&s);
                             s = ss.split_off(1);
+                            s.truncate(s.len() - 1);
                             let c = E::from_str(&s);
                             res.add_edge2(from, to, &ww, &c);
                             let l = res.edges.len();
